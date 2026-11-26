@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SIMPEG - Layanan Administrasi Akademis</title>
+  <link href="https://jsdelivr.net" rel="stylesheet">
+  <script src="https://jsdelivr.net"></script>
+</head>
+<body class="bg-light">
+<div class="container py-4">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h2 class="text-primary fw-bold mb-0">Sistem Informasi Kepegawaian (SIMPEG)</h2>
+      <p class="text-muted mb-0">Unit Layanan Administrasi Akademis Kampus</p>
+    </div>
+    <span class="badge bg-success fs-6">Cloud Connected: Supabase</span>
+  </div>
+
+  <!-- Form Tambah Staf Akademik -->
+  <div class="card mb-4 shadow-sm">
+    <div class="card-header bg-primary text-white fw-semibold">Tambah Data Pegawai Administrasi Akademis</div>
+    <div class="card-body">
+      <form id="formPegawai" class="row g-3">
+        <div class="col-md-2">
+          <input type="text" id="nip" class="form-control" placeholder="NIP (ADM0051)" required>
+        </div>
+        <div class="col-md-3">
+          <input type="text" id="nama" class="form-control" placeholder="Nama Lengkap & Gelar" required>
+        </div>
+        <div class="col-md-3">
+          <input type="email" id="email" class="form-control" placeholder="Email (@kampus.ac.id)" required>
+        </div>
+        <div class="col-md-2">
+          <select id="dept" class="form-select" required>
+            <option value="1">BAAK</option>
+            <option value="2">BAUK</option>
+            <option value="3">Admin Fakultas/Prodi</option>
+            <option value="4">Perpustakaan</option>
+            <option value="5">IT & PDDIKTI</option>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <select id="status" class="form-select">
+            <option value="Tetap">Tetap</option>
+            <option value="Kontrak">Kontrak</option>
+            <option value="Magang">Magang</option>
+          </select>
+        </div>
+        <div class="col-12">
+          <button type="submit" class="btn btn-success">Simpan Data ke Cloud</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Tabel Data Pegawai -->
+  <div class="card shadow-sm">
+    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+      <span class="fw-bold">Daftar Pegawai Administrasi Akademis (<span id="totalData">0</span> Pegawai)</span>
+    </div>
+    <div class="card-body table-responsive">
+      <table class="table table-bordered table-hover align-middle">
+        <thead class="table-dark">
+          <tr>
+            <th>No</th>
+            <th>NIP</th>
+            <th>Nama Lengkap</th>
+            <th>Email</th>
+            <th>Unit Kerja</th>
+            <th>Jabatan</th>
+            <th>Status</th>
+            <th>Aksi</th>
+          </tr>
+        </thead>
+        <tbody id="tabelPegawai"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+  const SUPABASE_URL = 'https://supabase.co';
+  const SUPABASE_KEY = sb_publishable_itDNDUEYPlnmOOBajJOUKQ_qkv2fhVD;
+  const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  async function loadPegawai() {
+    const { data, error } = await supabaseClient
+      .from('pegawai')
+      .select('*, departemen(nama_dept), jabatan(nama_jabatan)')
+      .order('nip', { ascending: true });
+
+    if (error) return alert('Gagal memuat data: ' + error.message);
+
+    document.getElementById('totalData').innerText = data.length;
+    const tbody = document.getElementById('tabelPegawai');
+    tbody.innerHTML = '';
+
+    data.forEach((p, index) => {
+      tbody.innerHTML += `
+        <tr>
+          <td>${index + 1}</td>
+          <td class="fw-semibold">${p.nip}</td>
+          <td>${p.nama_lengkap}</td>
+          <td>${p.email}</td>
+          <td>${p.departemen ? p.departemen.nama_dept : '-'}</td>
+          <td>${p.jabatan ? p.jabatan.nama_jabatan : '-'}</td>
+          <td><span class="badge bg-info text-dark">${p.status_kerja}</span></td>
+          <td>
+            <button class="btn btn-outline-danger btn-sm" onclick="hapusPegawai('${p.id_pegawai}')">Hapus</button>
+          </td>
+        </tr>`;
+    });
+  }
+
+  document.getElementById('formPegawai').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const { error } = await supabaseClient.from('pegawai').insert([{
+      nip: document.getElementById('nip').value,
+      nama_lengkap: document.getElementById('nama').value,
+      email: document.getElementById('email').value,
+      id_dept: parseInt(document.getElementById('dept').value),
+      id_jabatan: 4,
+      status_kerja: document.getElementById('status').value,
+      tgl_masuk: new Date().toISOString().split('T')[0]
+    }]);
+
+    if (error) alert('Gagal simpan: ' + error.message);
+    else {
+      e.target.reset();
+      loadPegawai();
+    }
+  });
+
+  async function hapusPegawai(id) {
+    if (!confirm('Hapus data pegawai ini?')) return;
+    await supabaseClient.from('pegawai').delete().eq('id_pegawai', id);
+    loadPegawai();
+  }
+
+  loadPegawai();
+</script>
+</body>
+</html>
