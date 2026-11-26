@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <title>SIMPEG - Administrasi Akademis</title>
    <link rel="stylesheet" href="https://cloudflare.com">
-  <script src="https://unpkg.com"></script>
+  
 </head>
 <body class="bg-light p-4">
 <div class="container">
@@ -58,13 +58,19 @@
 </div>
 
 <script>
-  const SUPABASE_URL = 'https://supabase.co';
-  const SUPABASE_KEY = 'sb_publishable_itDNDUEYPlnmOOBajJOUKQ_qkv2fhVD';
-  const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const URL_DB = 'https://supabase.co';
+  const API_KEY = 'TEMPEL_KEY_SUPABASE';
+  const HEADERS = {
+    'apikey': API_KEY,
+    'Authorization': 'Bearer ' + API_KEY,
+    'Content-Type': 'application/json'
+  };
 
   async function loadPegawai() {
-    const { data, error } = await db.from('pegawai').select('*, departemen(nama_dept), jabatan(nama_jabatan)').order('nip');
-    if (error) return alert('Error: ' + error.message);
+    const res = await fetch(`${URL_DB}/pegawai?select=*,departemen(nama_dept),jabatan(nama_jabatan)&order=nip.asc`, { headers: HEADERS });
+    const data = await res.json();
+    if (!res.ok) return alert('Error: ' + JSON.stringify(data));
+
     document.getElementById('totalData').innerText = data.length;
     document.getElementById('tabelPegawai').innerHTML = data.map((p, i) => `
       <tr>
@@ -72,8 +78,8 @@
         <td><b>${p.nip}</b></td>
         <td>${p.nama_lengkap}</td>
         <td>${p.email}</td>
-        <td>${p.departemen?.nama_dept || '-'}</td>
-        <td>${p.jabatan?.nama_jabatan || '-'}</td>
+        <td>${p.departemen ? p.departemen.nama_dept : '-'}</td>
+        <td>${p.jabatan ? p.jabatan.nama_jabatan : '-'}</td>
         <td><span class="badge bg-info text-dark">${p.status_kerja}</span></td>
         <td><button class="btn btn-danger btn-sm" onclick="hapus('${p.id_pegawai}')">Hapus</button></td>
       </tr>`).join('');
@@ -81,19 +87,30 @@
 
   document.getElementById('formPegawai').onsubmit = async (e) => {
     e.preventDefault();
-    const { error } = await db.from('pegawai').insert([{
-      nip: nip.value, nama_lengkap: nama.value, email: email.value,
-      id_dept: parseInt(dept.value), id_jabatan: 4, status_kerja: status.value,
-      tgl_masuk: new Date().toISOString().split('T')
-    }]);
-    if (error) alert(error.message); else { e.target.reset(); loadPegawai(); }
+    const res = await fetch(`${URL_DB}/pegawai`, {
+      method: 'POST',
+      headers: HEADERS,
+      body: JSON.stringify({
+        nip: nip.value,
+        nama_lengkap: nama.value,
+        email: email.value,
+        id_dept: parseInt(dept.value),
+        id_jabatan: 4,
+        status_kerja: status.value,
+        tgl_masuk: new Date().toISOString().split('T')[0]
+      })
+    });
+    if (!res.ok) alert('Gagal simpan!'); else { e.target.reset(); loadPegawai(); }
   };
 
   async function hapus(id) {
-    if (confirm('Hapus data ini?')) { await db.from('pegawai').delete().eq('id_pegawai', id); loadPegawai(); }
+    if (!confirm('Hapus data ini?')) return;
+    await fetch(`${URL_DB}/pegawai?id_pegawai=eq.${id}`, { method: 'DELETE', headers: HEADERS });
+    loadPegawai();
   }
 
   loadPegawai();
 </script>
 </body>
 </html>
+
